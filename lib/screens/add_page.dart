@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class AddTodoPage extends StatefulWidget {
-  const AddTodoPage({super.key});
+  final Map? todo;
+  const AddTodoPage({
+    super.key,
+    this.todo,
+  });
 
   @override
   State<AddTodoPage> createState() => _AddTodoPageState();
@@ -14,11 +18,26 @@ class _AddTodoPageState extends State<AddTodoPage> {
   TextEditingController titleController =
       TextEditingController(/*text:"default text"*/);
   TextEditingController decsController = TextEditingController();
+  bool isEdit = false;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    final todo = widget.todo;
+    if (todo != null) {
+      isEdit = true;
+      final title = todo['title'];
+      final desc = todo['description'];
+      titleController.text = title;
+      decsController.text = desc;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text("Add a todo"),
+          title: Text(isEdit ? 'Edit task' : "Add Task"),
         ),
         body: ListView(
           //listview is scrollable by default unlike Column()
@@ -43,8 +62,11 @@ class _AddTodoPageState extends State<AddTodoPage> {
               height: 20,
             ),
             ElevatedButton(
-              onPressed: submitData,
-              child: const Text("Submit"),
+              onPressed: isEdit ? updateData : submitData,
+              child: Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Text(isEdit ? "Update" : "Submit"),
+              ),
             )
           ],
         ));
@@ -81,6 +103,39 @@ class _AddTodoPageState extends State<AddTodoPage> {
     } else {
       showFailureMessage("BOOm! fail");
       print("error\n$response.body");
+    }
+  }
+
+  Future<void> updateData() async {
+    //get data
+    final todo = widget.todo;
+    if (todo == null) {
+      print("cant update without todo data"); //!remove this lateer
+      return;
+    }
+
+    final id = todo['_id'];
+
+    final title = titleController.text;
+    final desc = decsController.text;
+    final body = {
+      "title": title,
+      "description": desc,
+      "is_completed": todo["is_completed"],
+    };
+
+    //submit
+    final url = "https://api.nstack.in/v1/todos/$id";
+    final uri = Uri.parse(url);
+    final response = await http.put(uri, body: jsonEncode(body), headers: {
+      'Content-type': "application/json",
+    });
+
+    //success/failure
+    if (response.statusCode == 200) {
+      showSuccessMessage("update success");
+    } else {
+      showFailureMessage("BOOm!fail");
     }
   }
 

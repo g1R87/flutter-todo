@@ -39,10 +39,34 @@ class _TodoListPageState extends State<TodoListPage> {
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index] as Map;
+              final id = item['_id'] as String;
               return ListTile(
                 leading: CircleAvatar(child: Text('${index + 1}')),
                 title: Text(item['title']),
                 subtitle: Text(item['description']),
+                trailing: PopupMenuButton(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      navigateToEditPage(item);
+                    } else {
+                      if (value == 'del') {
+                        deleteById(id);
+                      }
+                    }
+                  },
+                  itemBuilder: (context) {
+                    return [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text("Edit"),
+                      ),
+                      const PopupMenuItem(
+                        value: 'del',
+                        child: Text("Delete"),
+                      ),
+                    ];
+                  },
+                ),
               );
             },
           ),
@@ -52,11 +76,44 @@ class _TodoListPageState extends State<TodoListPage> {
     );
   }
 
-  void navigateToAddPage() {
+  Future<void> navigateToAddPage() async {
     final route = MaterialPageRoute(
       builder: (context) => const AddTodoPage(),
     );
-    Navigator.push(context, route);
+    await Navigator.push(context, route);
+    setState(() {
+      isLoading = true;
+    });
+    fetchTodo();
+  }
+
+  Future<void> navigateToEditPage(Map item) async {
+    final route = MaterialPageRoute(
+      builder: (context) => AddTodoPage(todo: item),
+    );
+    await Navigator.push(context, route);
+    setState(() {
+      isLoading = true;
+    });
+    fetchTodo();
+  }
+
+  Future<void> deleteById(String id) async {
+    //delete item
+    final url = "https://api.nstack.in/v1/todos/$id";
+    final uri = Uri.parse(url);
+    final response = await http.delete(uri);
+    if (response.statusCode == 200) {
+      //remove item from view
+
+      final filteredItems =
+          items.where((element) => element['_id'] != id).toList();
+      setState(() {
+        items = filteredItems;
+      });
+    } else {
+      showFailureMessage("Unable to delete");
+    }
   }
 
   Future<void> fetchTodo() async {
@@ -73,10 +130,24 @@ class _TodoListPageState extends State<TodoListPage> {
       });
     } else {
       //show error
+      showFailureMessage("Unable to fetch");
     }
     setState(() {
       isLoading = false;
     });
     print(response.body); //!remove this
+  }
+
+  void showFailureMessage(String message) {
+    final snackBar = SnackBar(
+      backgroundColor: Colors.red,
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white,
+        ),
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 }
